@@ -44,21 +44,21 @@ const POIS = [
   { name: 'Ozone Cinemas E-Centre',             category: 'cinema',  lat: 6.5070, lng: 3.3690, address: 'Commercial Ave, Yaba',        phone: '',            hours: 'Daily 10am–10pm', tags: ['cinema', 'movies', 'film', 'entertainment'] },
 ];
 
-let map, markers = [], activeCategory = 'all', routingControl = null, savedPOIs = JSON.parse(localStorage.getItem('lagis_saved') || '[]'), currentPOI = null;
+let map, markers = [], activeCategory = 'all', routingControl = null, userLocation = null, currentPOI = null;
+let savedPOIs = JSON.parse(localStorage.getItem('lagis_saved') || '[]');
 
 function getMeta(cat) { return CATEGORY_META[cat] || CATEGORY_META.other; }
 
 // ── MAP INIT ──
 function initMap() {
   map = L.map('map', { zoomControl: false, attributionControl: false }).setView([6.5120, 3.3700], 15);
-
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
   renderMarkers(POIS);
   renderList(POIS);
 
   map.on('click', closeCard);
-  map.on('zoom', () => renderMarkers(getFiltered()));
+  map.on('zoomend', () => renderMarkers(getFiltered()));
 
   document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn());
   document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
@@ -66,8 +66,6 @@ function initMap() {
 }
 
 // ── LOCATION ──
-let userLocation = null;
-
 function locateMe() {
   if (!navigator.geolocation) return;
   const btn = document.getElementById('locate-btn');
@@ -78,63 +76,96 @@ function locateMe() {
     map.setView(userLocation, 16);
     L.circleMarker(userLocation, {
       radius: 8, color: '#1a7a4a', fillColor: '#1a7a4a', fillOpacity: 0.8, weight: 3
-    }).addTo(map).bindPopup('You are here').openPopup();
+    }).addTo(map);
   }, () => { btn.style.color = '#ef4444'; setTimeout(() => btn.style.color = '', 2000); });
 }
 
-// ── DIRECTIONS ──
-function getDirections(poi) {
-  if (routingControl) { map.removeControl(routingControl); routingControl = null; }
-
-  if (!userLocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      userLocation = [pos.coords.latitude, pos.coords.longitude];
-      drawRoute(userLocation, poi);
-    }, () => {
-      // If no GPS, use a default Yaba center point
-      drawRoute([6.5120, 3.3700], poi);
-    });
-  } else {
-    drawRoute(userLocation, poi);
-  }
+// ── ROUTE PANEL ──
+function openRoutePanel(poi) {
+  currentPOI = poi;
+  const panel = document.getElementById('route-panel');
+  document.getElementById('route-to').value = poi ? `${poi.name}, ${poi.address}` : '';
+  document.getElementById('route-from').value = userLocation ? 'Your location' : '';
+  window._routeDestPOI = poi;
+  panel.classList.remove('hidden');
+  setTimeout(() => panel.classList.add('visible'), 10);
+  document.getElementById('route-overlay').classList.remove('hidden');
   closeCard();
-  setSheet('collapsed');
+  showNearbySuggestions(poi);
 }
 
-function drawRoute(from, poi) {
+function closeRoutePanel() {
+  const panel = document.getElementById('route-panel');
+  panel.classList.remove('visible');
+  document.getElementById('route-overlay').classList.add('hidden');
+  setTimeout(() => panel.classList.add('hidden'), 300);
+}
+
+function showNearbySuggestions(poi) {
+  if (!poi) return;
+  const list = document.getElementById('route-suggestions-list');
+  list.innerHTML = '';
+  const nearby = POIS
+    .filter(p => p.name !== poi.name)
+    .map(p => ({ ...p, dist: Math.abs(p.lat - poi.lat) + Math.abs(p.lng - poi.lng) }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 6);
+  nearby.forEach(p => {
+    const meta = getMeta(p.category);
+    const chip = document.createElement('div');
+    chip.className = 'suggestion-chip';
+    chip.textContent = `${meta.emoji} ${p.name}`;
+    chip.addEventListener('click', () => {
+      document.getElementById('route-to').value = `${p.name}, ${p.address}`;
+      window._routeDestPOI = p;
+    });
+    list.appendChild(chip);
+  });
+}
+
+function executeRoute() {
+  const destPOI = window._routeDestPOI;
+  if (!destPOI) { showToast('Please select a destination'); return; }
+  const from = userLocation || [6.5120, 3.3700];
+  const mode = document.querySelector('.mode-btn.active')?.dataset.mode || 'driving';
+  drawRoute(from, destPOI, mode);
+  closeRoutePanel();
+}
+
+function drawRoute(from, poi, mode = 'driving') {
+  if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+  const color = mode === 'walking' ? '#06b6d4' : mode === 'cycling' ? '#f59e0b' : '#1a7a4a';
+
   routingControl = L.Routing.control({
-    waypoints: [
-      L.latLng(from[0], from[1]),
-      L.latLng(poi.lat, poi.lng)
-    ],
+    waypoints: [L.latLng(from[0], from[1]), L.latLng(poi.lat, poi.lng)],
     router: L.Routing.osrmv1({
       serviceUrl: 'https://router.project-osrm.org/route/v1',
-      profile: 'driving'
+      profile: mode === 'walking' ? 'foot' : mode === 'cycling' ? 'bike' : 'car'
     }),
-    lineOptions: {
-      styles: [{ color: '#1a7a4a', weight: 5, opacity: 0.8 }]
-    },
-    show: true,
+    lineOptions: { styles: [{ color, weight: 5, opacity: 0.85 }] },
+    show: false,
     addWaypoints: false,
     routeWhileDragging: false,
     fitSelectedRoutes: true,
     showAlternatives: false,
-    collapsible: true,
-    containerClassName: 'lagis-routing',
-    createMarker: (i, wp) => {
-      const isStart = i === 0;
-      return L.marker(wp.latLng, {
-        icon: L.divIcon({
-          className: '',
-          html: `<div style="width:14px;height:14px;background:${isStart ? '#1a7a4a' : '#f97316'};border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
-          iconSize: [14, 14], iconAnchor: [7, 7]
-        })
-      });
-    }
+    createMarker: (i, wp) => L.marker(wp.latLng, {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:${i === 0 ? '#1a7a4a' : '#f97316'};border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7]
+      })
+    })
   }).addTo(map);
 
-  // Show cancel button
-  showCancelRoute();
+  routingControl.on('routesfound', e => {
+    const route = e.routes[0];
+    const km = (route.summary.totalDistance / 1000).toFixed(1);
+    const mins = Math.round(route.summary.totalTime / 60);
+    document.getElementById('route-distance').textContent = `📍 ${km} km`;
+    document.getElementById('route-time').textContent = `⏱ ${mins} min`;
+    document.getElementById('route-info').classList.remove('hidden');
+    showCancelRoute();
+  });
 }
 
 function showCancelRoute() {
@@ -143,14 +174,10 @@ function showCancelRoute() {
     btn = document.createElement('button');
     btn.id = 'cancel-route';
     btn.textContent = '✕ Cancel Route';
-    btn.style.cssText = `
-      position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
-      background:#ef4444;color:#fff;border:none;border-radius:20px;
-      padding:10px 20px;font-size:14px;font-weight:600;
-      box-shadow:0 2px 12px rgba(0,0,0,0.2);z-index:500;cursor:pointer;
-    `;
+    btn.style.cssText = `position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;border:none;border-radius:20px;padding:10px 20px;font-size:14px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,0.2);z-index:500;cursor:pointer;`;
     btn.addEventListener('click', () => {
       if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+      document.getElementById('route-info').classList.add('hidden');
       btn.remove();
     });
     document.body.appendChild(btn);
@@ -159,26 +186,19 @@ function showCancelRoute() {
 
 // ── SHARE ──
 function sharePOI(poi) {
-  const text = `${poi.name}\n${poi.address}\n\nFound on LAGIS — Lagos Interactive Map\nbright xam.github.io/LAGIS-mobile`;
+  const text = `${poi.name}\n${poi.address}\n\nFound on LAGIS — Lagos Interactive Map\nhttps://brightxam.github.io/LAGIS-mobile`;
   if (navigator.share) {
     navigator.share({ title: poi.name, text, url: 'https://brightxam.github.io/LAGIS-mobile' });
   } else {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('Copied to clipboard!');
-    });
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
   }
 }
 
 // ── SAVE ──
 function toggleSave(poi) {
   const idx = savedPOIs.findIndex(p => p.name === poi.name);
-  if (idx === -1) {
-    savedPOIs.push(poi);
-    showToast(`${poi.name} saved!`);
-  } else {
-    savedPOIs.splice(idx, 1);
-    showToast('Removed from saved');
-  }
+  if (idx === -1) { savedPOIs.push(poi); showToast(`${poi.name} saved!`); }
+  else { savedPOIs.splice(idx, 1); showToast('Removed from saved'); }
   localStorage.setItem('lagis_saved', JSON.stringify(savedPOIs));
   updateSaveBtn(poi);
 }
@@ -187,10 +207,8 @@ function updateSaveBtn(poi) {
   const btn = document.getElementById('btn-save');
   if (!btn) return;
   const saved = savedPOIs.some(p => p.name === poi.name);
-  btn.innerHTML = saved
-    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="#1a7a4a" stroke="#1a7a4a" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> Saved`
-    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> Save`;
   btn.style.color = saved ? '#1a7a4a' : '';
+  btn.childNodes[1].textContent = saved ? ' Saved' : ' Save';
 }
 
 // ── TOAST ──
@@ -199,13 +217,7 @@ function showToast(msg) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'lagis-toast';
-    toast.style.cssText = `
-      position:fixed;bottom:180px;left:50%;transform:translateX(-50%);
-      background:#1a1a1a;color:#fff;padding:10px 20px;
-      border-radius:20px;font-size:13px;font-weight:500;
-      z-index:600;opacity:0;transition:opacity 0.2s;pointer-events:none;
-      white-space:nowrap;
-    `;
+    toast.style.cssText = `position:fixed;bottom:180px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:600;opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap;`;
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
@@ -217,7 +229,6 @@ function showToast(msg) {
 function renderMarkers(pois) {
   markers.forEach(m => map.removeLayer(m));
   markers = [];
-
   const zoom = map.getZoom();
   const { clusters, unclustered } = clusterPOIs(pois, zoom);
 
@@ -314,8 +325,8 @@ function openCard(poi) {
   document.getElementById('meta-hours-text').textContent = poi.hours;
   document.getElementById('meta-hours').classList.toggle('hidden', !poi.hours);
 
-  // Wire up buttons
   const btns = document.getElementById('card-btns');
+  const isSaved = savedPOIs.some(p => p.name === poi.name);
   btns.innerHTML = `
     <button class="card-action primary" id="btn-directions">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
@@ -325,16 +336,15 @@ function openCard(poi) {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
       Share
     </button>
-    <button class="card-action" id="btn-save">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      Save
+    <button class="card-action" id="btn-save" style="color:${isSaved ? '#1a7a4a' : ''}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="${isSaved ? '#1a7a4a' : 'none'}" stroke="${isSaved ? '#1a7a4a' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      ${isSaved ? 'Saved' : 'Save'}
     </button>
   `;
 
-  document.getElementById('btn-directions').addEventListener('click', () => getDirections(poi));
+  document.getElementById('btn-directions').addEventListener('click', () => openRoutePanel(poi));
   document.getElementById('btn-share').addEventListener('click', () => sharePOI(poi));
   document.getElementById('btn-save').addEventListener('click', () => toggleSave(poi));
-  updateSaveBtn(poi);
 
   document.getElementById('poi-card').classList.remove('hidden');
   collapseSheet();
@@ -347,6 +357,32 @@ function closeCard() {
 }
 
 document.getElementById('card-close').addEventListener('click', closeCard);
+
+// ── ROUTE PANEL EVENTS ──
+document.getElementById('route-close').addEventListener('click', closeRoutePanel);
+document.getElementById('route-overlay').addEventListener('click', closeRoutePanel);
+document.getElementById('btn-get-route').addEventListener('click', executeRoute);
+document.getElementById('btn-use-location').addEventListener('click', () => {
+  locateMe();
+  document.getElementById('route-from').value = 'Your location';
+});
+document.getElementById('btn-clear-to').addEventListener('click', () => {
+  document.getElementById('route-to').value = '';
+  window._routeDestPOI = null;
+});
+document.getElementById('route-swap').addEventListener('click', () => {
+  const from = document.getElementById('route-from');
+  const to = document.getElementById('route-to');
+  const temp = from.value;
+  from.value = to.value;
+  to.value = temp;
+});
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
 
 // ── BOTTOM SHEET DRAG ──
 const sheet = document.getElementById('bottom-sheet');
