@@ -44,50 +44,29 @@ const POIS = [
   { name: 'Ozone Cinemas E-Centre',             category: 'cinema',  lat: 6.5070, lng: 3.3690, address: 'Commercial Ave, Yaba',        phone: '',            hours: 'Daily 10am–10pm', tags: ['cinema', 'movies', 'film', 'entertainment'] },
 ];
 
-let map, activeCategory = 'all', mapMarkers = [], is3D = false, selectedMarker = null;
+let map, markers = [], activeCategory = 'all', routingControl = null, savedPOIs = JSON.parse(localStorage.getItem('lagis_saved') || '[]'), currentPOI = null;
 
 function getMeta(cat) { return CATEGORY_META[cat] || CATEGORY_META.other; }
 
 // ── MAP INIT ──
 function initMap() {
-  map = new maplibregl.Map({
-    container: 'map',
-   style: 'https://tiles.openfreemap.org/styles/liberty',
-    center: [3.3700, 6.5120],
-    zoom: 15,
-    pitch: 0,
-    bearing: 0,
-    attributionControl: false,
-  });
+  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([6.5120, 3.3700], 15);
 
-  map.on('load', () => {
-    renderMarkers(POIS);
-    renderList(POIS);
-  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+  renderMarkers(POIS);
+  renderList(POIS);
 
   map.on('click', closeCard);
   map.on('zoom', () => renderMarkers(getFiltered()));
 
-  document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn({ duration: 300 }));
-  document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut({ duration: 300 }));
-  document.getElementById('btn-compass').addEventListener('click', () => map.easeTo({ bearing: 0, pitch: 0, duration: 500 }));
-  document.getElementById('btn-3d').addEventListener('click', toggle3D);
+  document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn());
+  document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
   document.getElementById('locate-btn').addEventListener('click', locateMe);
 }
 
-function toggle3D() {
-  is3D = !is3D;
-  const btn = document.getElementById('btn-3d');
-  if (is3D) {
-    map.easeTo({ pitch: 55, bearing: -15, duration: 800 });
-    btn.style.background = '#1a7a4a';
-    btn.style.color = '#fff';
-  } else {
-    map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
-    btn.style.background = '';
-    btn.style.color = '';
-  }
-}
+// ── LOCATION ──
+let userLocation = null;
 
 function locateMe() {
   if (!navigator.geolocation) return;
@@ -95,44 +74,178 @@ function locateMe() {
   btn.style.color = '#f97316';
   navigator.geolocation.getCurrentPosition(pos => {
     btn.style.color = '#1a7a4a';
-    map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 16, duration: 1000 });
-    const el = document.createElement('div');
-    el.style.cssText = 'width:16px;height:16px;background:#1a7a4a;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 3px rgba(26,122,74,0.3);';
-    new maplibregl.Marker({ element: el }).setLngLat([pos.coords.longitude, pos.coords.latitude]).addTo(map);
+    userLocation = [pos.coords.latitude, pos.coords.longitude];
+    map.setView(userLocation, 16);
+    L.circleMarker(userLocation, {
+      radius: 8, color: '#1a7a4a', fillColor: '#1a7a4a', fillOpacity: 0.8, weight: 3
+    }).addTo(map).bindPopup('You are here').openPopup();
   }, () => { btn.style.color = '#ef4444'; setTimeout(() => btn.style.color = '', 2000); });
+}
+
+// ── DIRECTIONS ──
+function getDirections(poi) {
+  if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+
+  if (!userLocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      userLocation = [pos.coords.latitude, pos.coords.longitude];
+      drawRoute(userLocation, poi);
+    }, () => {
+      // If no GPS, use a default Yaba center point
+      drawRoute([6.5120, 3.3700], poi);
+    });
+  } else {
+    drawRoute(userLocation, poi);
+  }
+  closeCard();
+  setSheet('collapsed');
+}
+
+function drawRoute(from, poi) {
+  routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(from[0], from[1]),
+      L.latLng(poi.lat, poi.lng)
+    ],
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1',
+      profile: 'driving'
+    }),
+    lineOptions: {
+      styles: [{ color: '#1a7a4a', weight: 5, opacity: 0.8 }]
+    },
+    show: true,
+    addWaypoints: false,
+    routeWhileDragging: false,
+    fitSelectedRoutes: true,
+    showAlternatives: false,
+    collapsible: true,
+    containerClassName: 'lagis-routing',
+    createMarker: (i, wp) => {
+      const isStart = i === 0;
+      return L.marker(wp.latLng, {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="width:14px;height:14px;background:${isStart ? '#1a7a4a' : '#f97316'};border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [14, 14], iconAnchor: [7, 7]
+        })
+      });
+    }
+  }).addTo(map);
+
+  // Show cancel button
+  showCancelRoute();
+}
+
+function showCancelRoute() {
+  let btn = document.getElementById('cancel-route');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'cancel-route';
+    btn.textContent = '✕ Cancel Route';
+    btn.style.cssText = `
+      position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+      background:#ef4444;color:#fff;border:none;border-radius:20px;
+      padding:10px 20px;font-size:14px;font-weight:600;
+      box-shadow:0 2px 12px rgba(0,0,0,0.2);z-index:500;cursor:pointer;
+    `;
+    btn.addEventListener('click', () => {
+      if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+      btn.remove();
+    });
+    document.body.appendChild(btn);
+  }
+}
+
+// ── SHARE ──
+function sharePOI(poi) {
+  const text = `${poi.name}\n${poi.address}\n\nFound on LAGIS — Lagos Interactive Map\nbright xam.github.io/LAGIS-mobile`;
+  if (navigator.share) {
+    navigator.share({ title: poi.name, text, url: 'https://brightxam.github.io/LAGIS-mobile' });
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied to clipboard!');
+    });
+  }
+}
+
+// ── SAVE ──
+function toggleSave(poi) {
+  const idx = savedPOIs.findIndex(p => p.name === poi.name);
+  if (idx === -1) {
+    savedPOIs.push(poi);
+    showToast(`${poi.name} saved!`);
+  } else {
+    savedPOIs.splice(idx, 1);
+    showToast('Removed from saved');
+  }
+  localStorage.setItem('lagis_saved', JSON.stringify(savedPOIs));
+  updateSaveBtn(poi);
+}
+
+function updateSaveBtn(poi) {
+  const btn = document.getElementById('btn-save');
+  if (!btn) return;
+  const saved = savedPOIs.some(p => p.name === poi.name);
+  btn.innerHTML = saved
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="#1a7a4a" stroke="#1a7a4a" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> Saved`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> Save`;
+  btn.style.color = saved ? '#1a7a4a' : '';
+}
+
+// ── TOAST ──
+function showToast(msg) {
+  let toast = document.getElementById('lagis-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'lagis-toast';
+    toast.style.cssText = `
+      position:fixed;bottom:180px;left:50%;transform:translateX(-50%);
+      background:#1a1a1a;color:#fff;padding:10px 20px;
+      border-radius:20px;font-size:13px;font-weight:500;
+      z-index:600;opacity:0;transition:opacity 0.2s;pointer-events:none;
+      white-space:nowrap;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => toast.style.opacity = '0', 2000);
 }
 
 // ── MARKERS ──
 function renderMarkers(pois) {
-  mapMarkers.forEach(m => m.remove());
-  mapMarkers = [];
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
 
   const zoom = map.getZoom();
   const { clusters, unclustered } = clusterPOIs(pois, zoom);
 
   clusters.forEach(cl => {
-    const el = document.createElement('div');
-    el.style.cssText = `width:40px;height:40px;background:#1a7a4a;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.25);cursor:pointer;`;
-    el.textContent = cl.count;
-    el.addEventListener('click', e => { e.stopPropagation(); map.flyTo({ center: [cl.lng, cl.lat], zoom: map.getZoom() + 2, duration: 500 }); });
-    mapMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([cl.lng, cl.lat]).addTo(map));
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:38px;height:38px;background:#1a7a4a;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.25);cursor:pointer;">${cl.count}</div>`,
+      iconSize: [38, 38], iconAnchor: [19, 19]
+    });
+    const m = L.marker([cl.lat, cl.lng], { icon }).addTo(map)
+      .on('click', e => { L.DomEvent.stopPropagation(e); map.setView([cl.lat, cl.lng], map.getZoom() + 2); });
+    markers.push(m);
   });
 
   unclustered.forEach(poi => {
     const meta = getMeta(poi.category);
-    const el = document.createElement('div');
-    el.style.cssText = `width:34px;height:34px;background:${meta.color};border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all 0.15s;`;
-    el.textContent = meta.emoji;
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      el.style.width = '44px';
-      el.style.height = '44px';
-      el.style.fontSize = '20px';
-      el.style.boxShadow = '0 2px 12px rgba(0,0,0,0.35)';
-      map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 16), duration: 600 });
-      openCard(poi);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:34px;height:34px;background:${meta.color};border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">${meta.emoji}</div>`,
+      iconSize: [34, 34], iconAnchor: [17, 17]
     });
-    mapMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([poi.lng, poi.lat]).addTo(map));
+    const m = L.marker([poi.lat, poi.lng], { icon }).addTo(map)
+      .on('click', e => {
+        L.DomEvent.stopPropagation(e);
+        map.setView([poi.lat, poi.lng], Math.max(map.getZoom(), 16));
+        openCard(poi);
+      });
+    markers.push(m);
   });
 }
 
@@ -179,7 +292,7 @@ function renderList(pois) {
     item.addEventListener('click', () => {
       document.querySelectorAll('.poi-item').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
-      map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 16), duration: 600 });
+      map.setView([poi.lat, poi.lng], Math.max(map.getZoom(), 16));
       openCard(poi);
     });
     list.appendChild(item);
@@ -188,6 +301,7 @@ function renderList(pois) {
 
 // ── POI CARD ──
 function openCard(poi) {
+  currentPOI = poi;
   const meta = getMeta(poi.category);
   const badge = document.getElementById('card-badge');
   badge.textContent = meta.label;
@@ -199,6 +313,29 @@ function openCard(poi) {
   document.getElementById('meta-phone').classList.toggle('hidden', !poi.phone);
   document.getElementById('meta-hours-text').textContent = poi.hours;
   document.getElementById('meta-hours').classList.toggle('hidden', !poi.hours);
+
+  // Wire up buttons
+  const btns = document.getElementById('card-btns');
+  btns.innerHTML = `
+    <button class="card-action primary" id="btn-directions">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      Directions
+    </button>
+    <button class="card-action" id="btn-share">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <button class="card-action" id="btn-save">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Save
+    </button>
+  `;
+
+  document.getElementById('btn-directions').addEventListener('click', () => getDirections(poi));
+  document.getElementById('btn-share').addEventListener('click', () => sharePOI(poi));
+  document.getElementById('btn-save').addEventListener('click', () => toggleSave(poi));
+  updateSaveBtn(poi);
+
   document.getElementById('poi-card').classList.remove('hidden');
   collapseSheet();
 }
@@ -206,7 +343,7 @@ function openCard(poi) {
 function closeCard() {
   document.getElementById('poi-card').classList.add('hidden');
   document.querySelectorAll('.poi-item').forEach(i => i.classList.remove('active'));
-  selectedMarker = null;
+  currentPOI = null;
 }
 
 document.getElementById('card-close').addEventListener('click', closeCard);
