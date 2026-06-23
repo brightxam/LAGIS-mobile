@@ -52,7 +52,7 @@ function getMeta(cat) { return CATEGORY_META[cat] || CATEGORY_META.other; }
 function initMap() {
   map = new maplibregl.Map({
     container: 'map',
-    style: 'https://demotiles.maplibre.org/style.json',
+   style: 'https://tiles.openfreemap.org/styles/liberty',
     center: [3.3700, 6.5120],
     zoom: 15,
     pitch: 0,
