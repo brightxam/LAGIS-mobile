@@ -424,24 +424,165 @@ async function aiSearch(query) {
 }
 
 // ── SEARCH ──
+// ── SEARCH AUTOCOMPLETE ──
 const searchInput = document.getElementById('search');
 const clearBtn = document.getElementById('search-clear');
 let searchTimeout;
+
+// Create autocomplete dropdown
+const dropdown = document.createElement('div');
+dropdown.id = 'search-dropdown';
+dropdown.style.cssText = `
+  position:fixed;
+  top:64px;
+  left:12px;
+  right:12px;
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.12);
+  z-index:400;
+  overflow:hidden;
+  display:none;
+  max-height:60vh;
+  overflow-y:auto;
+`;
+document.body.appendChild(dropdown);
+
+function showDropdown(items) {
+  dropdown.innerHTML = '';
+  if (!items.length) { dropdown.style.display = 'none'; return; }
+
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display:flex;align-items:center;gap:12px;
+      padding:12px 16px;border-bottom:1px solid #f0f0f0;
+      cursor:pointer;transition:background 0.1s;
+    `;
+    row.innerHTML = `
+      <div style="width:36px;height:36px;background:${item.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${item.emoji}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+        <div style="font-size:12px;color:#999;margin-top:2px;">${item.sub}</div>
+      </div>
+      <div style="color:#ccc;font-size:16px;">›</div>
+    `;
+    row.addEventListener('mouseenter', () => row.style.background = '#f7f7f7');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+    row.addEventListener('click', () => {
+      hideDropdown();
+      searchInput.value = item.name;
+      if (item.poi) {
+        map.setView([item.poi.lat, item.poi.lng], 16);
+        openCard(item.poi);
+        saveRecentSearch(item.name);
+      }
+    });
+    dropdown.appendChild(row);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function hideDropdown() { dropdown.style.display = 'none'; }
+
+function saveRecentSearch(name) {
+  let recent = JSON.parse(localStorage.getItem('lagis_recent') || '[]');
+  recent = [name, ...recent.filter(r => r !== name)].slice(0, 5);
+  localStorage.setItem('lagis_recent', JSON.stringify(recent));
+}
+
+function getRecentSearches() {
+  return JSON.parse(localStorage.getItem('lagis_recent') || '[]');
+}
+
+function showRecentAndSuggested() {
+  const recent = getRecentSearches();
+  const items = [];
+
+  // Recent searches
+  recent.forEach(name => {
+    const poi = POIS.find(p => p.name === name);
+    if (poi) {
+      const meta = getMeta(poi.category);
+      items.push({ name: poi.name, sub: '🕐 Recent · ' + poi.address, emoji: meta.emoji, bg: meta.bg, poi });
+    }
+  });
+
+  // Popular suggestions if no recent
+  if (!recent.length) {
+    const popular = POIS.slice(0, 5);
+    popular.forEach(poi => {
+      const meta = getMeta(poi.category);
+      items.push({ name: poi.name, sub: '⭐ Popular · ' + poi.address, emoji: meta.emoji, bg: meta.bg, poi });
+    });
+  }
+
+  showDropdown(items);
+}
+
+searchInput.addEventListener('focus', () => {
+  if (!searchInput.value) showRecentAndSuggested();
+});
 
 searchInput.addEventListener('input', function () {
   clearBtn.classList.toggle('hidden', !this.value);
   clearTimeout(searchTimeout);
   const q = this.value.trim();
-  if (!q) { filterAndRender(); return; }
-  document.getElementById('list-count').textContent = 'Searching…';
+
+  if (!q) {
+    showRecentAndSuggested();
+    filterAndRender();
+    return;
+  }
+
+  // Instant local matches
+  const localMatches = POIS.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    p.address.toLowerCase().includes(q.toLowerCase()) ||
+    (p.tags && p.tags.some(t => t.includes(q.toLowerCase())))
+  ).slice(0, 5);
+
+  const localItems = localMatches.map(poi => {
+    const meta = getMeta(poi.category);
+    return { name: poi.name, sub: meta.label + ' · ' + poi.address, emoji: meta.emoji, bg: meta.bg, poi };
+  });
+
+  showDropdown(localItems);
+  filterAndRender();
+
+  // AI search after delay
   searchTimeout = setTimeout(async () => {
+    document.getElementById('list-count').textContent = 'Searching…';
     const results = await aiSearch(q);
-    if (results && results.length) { renderMarkers(results); renderList(results); document.getElementById('list-count').textContent = `${results.length} AI result${results.length !== 1 ? 's' : ''}`; }
-    else filterAndRender();
-  }, 600);
+    if (results && results.length) {
+      renderMarkers(results);
+      renderList(results);
+      document.getElementById('list-count').textContent = `${results.length} AI result${results.length !== 1 ? 's' : ''}`;
+
+      // Update dropdown with AI results
+      const aiItems = results.map(poi => {
+        const meta = getMeta(poi.category);
+        return { name: poi.name, sub: '🤖 AI match · ' + poi.address, emoji: meta.emoji, bg: meta.bg, poi };
+      });
+      showDropdown(aiItems);
+    }
+  }, 800);
 });
 
-clearBtn.addEventListener('click', () => { searchInput.value = ''; clearBtn.classList.add('hidden'); filterAndRender(); });
+clearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  clearBtn.classList.add('hidden');
+  hideDropdown();
+  filterAndRender();
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-box') && !e.target.closest('#search-dropdown')) {
+    hideDropdown();
+  }
+});
 
 // ── CATEGORY FILTER ──
 document.querySelectorAll('.pill').forEach(btn => {
