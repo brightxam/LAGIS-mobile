@@ -107,7 +107,7 @@ function getMeta(cat) { return CATEGORY_META[cat] || CATEGORY_META.other; }
 // ── MAP INIT ──
 function initMap() {
   map = L.map('map', { zoomControl: false, attributionControl: false }).setView([6.5120, 3.3700], 15);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
   // Start clean — no POIs shown
   showEmptyState();
