@@ -126,10 +126,41 @@ function showEmptyState() {
   isSearchActive = false;
   const list = document.getElementById('poi-list');
   list.innerHTML = `
-    <div style="padding:40px 20px;text-align:center;">
-      <div style="font-size:40px;margin-bottom:12px;">🗺️</div>
-      <div style="font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:6px;">Discover Yaba</div>
-      <div style="font-size:13px;color:#999;line-height:1.5;">Search for businesses, places or tap a category above to explore</div>
+    <div style="padding:24px 20px 32px;">
+      <div style="background:linear-gradient(135deg,#e8f5ee 0%,#f0fdf4 100%);border-radius:20px;padding:24px 20px;text-align:center;margin-bottom:20px;">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:12px;">
+          <circle cx="40" cy="40" r="40" fill="#1a7a4a" opacity="0.08"/>
+          <circle cx="40" cy="40" r="28" fill="#1a7a4a" opacity="0.12"/>
+          <path d="M40 20C31.2 20 24 27.2 24 36C24 47 40 60 40 60C40 60 56 47 56 36C56 27.2 48.8 20 40 20Z" fill="#1a7a4a"/>
+          <circle cx="40" cy="36" r="6" fill="white"/>
+        </svg>
+        <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">Discover Yaba</div>
+        <div style="font-size:13px;color:#666;line-height:1.6;">Lagos's tech and culture hub.<br/>Search or tap a category to explore.</div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Quick explore</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div onclick="quickExplore('food')" style="background:#fff4ed;border-radius:14px;padding:16px 12px;cursor:pointer;border:1.5px solid #fed7aa;">
+          <div style="font-size:24px;margin-bottom:6px;">🍽️</div>
+          <div style="font-size:13px;font-weight:600;color:#f97316;">Food & Drink</div>
+          <div style="font-size:11px;color:#999;margin-top:2px;">Restaurants & cafes</div>
+        </div>
+        <div onclick="quickExplore('bank')" style="background:#eff6ff;border-radius:14px;padding:16px 12px;cursor:pointer;border:1.5px solid #bfdbfe;">
+          <div style="font-size:24px;margin-bottom:6px;">🏦</div>
+          <div style="font-size:13px;font-weight:600;color:#3b82f6;">Banking</div>
+          <div style="font-size:11px;color:#999;margin-top:2px;">ATMs & banks</div>
+        </div>
+        <div onclick="quickExplore('health')" style="background:#f0fdf4;border-radius:14px;padding:16px 12px;cursor:pointer;border:1.5px solid #bbf7d0;">
+          <div style="font-size:24px;margin-bottom:6px;">🏥</div>
+          <div style="font-size:13px;font-weight:600;color:#22c55e;">Health</div>
+          <div style="font-size:11px;color:#999;margin-top:2px;">Hospitals & clinics</div>
+        </div>
+        <div onclick="quickExplore('market')" style="background:#faf5ff;border-radius:14px;padding:16px 12px;cursor:pointer;border:1.5px solid #e9d5ff;">
+          <div style="font-size:24px;margin-bottom:6px;">🛒</div>
+          <div style="font-size:13px;font-weight:600;color:#a855f7;">Markets</div>
+          <div style="font-size:11px;color:#999;margin-top:2px;">Shopping & trade</div>
+        </div>
+      </div>
     </div>
   `;
   document.getElementById('list-count').textContent = 'Explore Yaba';
@@ -638,5 +669,18 @@ document.querySelectorAll('.pill').forEach(btn => {
     }
   });
 });
-
+function quickExplore(cat) {
+  const filtered = POIS.filter(p => p.category === cat);
+  _currentResults = filtered;
+  isSearchActive = true;
+  renderMarkers(filtered);
+  renderList(filtered);
+  setSheet('expanded');
+  const meta = getMeta(cat);
+  document.getElementById('list-count').textContent = `${filtered.length} ${meta.label}`;
+  if (filtered.length > 0) {
+    const bounds = L.latLngBounds(filtered.map(p => [p.lat, p.lng]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }
+}
 initMap();
