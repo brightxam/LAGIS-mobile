@@ -17,23 +17,23 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════
-       MAP — TRUE FULL SCREEN ALWAYS
-       Everything else floats ON TOP of this
-  ═══════════════════════════════════════ -->
+  <!-- MAP -->
   <div id="map" role="application" aria-label="LAGIS Lagos city map"></div>
 
-  <!-- ═══════════════════════════════════════
-       FLOATING UI LAYER — all fixed positioned
-  ═══════════════════════════════════════ -->
+  <!-- FLOOR LEVEL SELECTOR (3D buildings, visible at zoom 17+) -->
+  <div id="floor-selector" class="hidden" aria-label="Floor level">
+    <button class="floor-btn" data-floor="3">3</button>
+    <button class="floor-btn" data-floor="2">2</button>
+    <button class="floor-btn active" data-floor="1">1</button>
+    <button class="floor-btn floor-g">G</button>
+  </div>
 
-  <!-- TOP BAR: Logo + Search + Theme toggle -->
+  <!-- TOP BAR -->
   <header id="topbar" role="banner">
     <div id="logo-pill" aria-label="LAGIS">
-      <div id="logo-icon" aria-hidden="true">L</div>
+      <div id="logo-icon">L</div>
       <span id="logo-text">LAGIS</span>
     </div>
-
     <div id="search-box" role="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -41,16 +41,20 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
       <input type="text" id="search"
-             placeholder="Search Yaba — places, food, banks…"
-             autocomplete="off"
-             autocorrect="off"
-             autocapitalize="off"
-             spellcheck="false"
-             aria-label="Search places in Yaba" />
+             placeholder="Search Lagos — food, banks, hospitals…"
+             autocomplete="off" autocorrect="off" autocapitalize="off"
+             spellcheck="false" aria-label="Search places in Lagos" />
       <button id="search-clear" class="hidden" aria-label="Clear search">✕</button>
+      <button id="search-voice" aria-label="Voice search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
     </div>
-
-    <!-- Theme toggle lives inside topbar flex row -->
     <button id="theme-btn" aria-label="Toggle dark mode">
       <svg id="theme-icon-light" width="18" height="18" viewBox="0 0 24 24"
            fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -66,81 +70,358 @@
     </button>
   </header>
 
-  <!-- CATEGORY PILLS — scrollable row below topbar -->
+  <!-- CATEGORY PILLS -->
   <nav id="cat-pills" aria-label="Filter by category">
-    <button class="pill active" data-cat="all"     aria-pressed="true">🗺️ All</button>
-    <button class="pill"        data-cat="food"    aria-pressed="false">🍽️ Food</button>
-    <button class="pill"        data-cat="bank"    aria-pressed="false">🏦 Banks</button>
-    <button class="pill"        data-cat="health"  aria-pressed="false">🏥 Health</button>
-    <button class="pill"        data-cat="market"  aria-pressed="false">🛒 Markets</button>
-    <button class="pill"        data-cat="school"  aria-pressed="false">🎓 Schools</button>
-    <button class="pill"        data-cat="tech"    aria-pressed="false">💻 Tech</button>
-    <button class="pill"        data-cat="fuel"    aria-pressed="false">⛽ Fuel</button>
-    <button class="pill"        data-cat="transit" aria-pressed="false">🚌 Transit</button>
-    <button class="pill"        data-cat="hotel"   aria-pressed="false">🏨 Hotels</button>
-    <button class="pill"        data-cat="pharmacy"aria-pressed="false">💊 Pharmacy</button>
-    <button class="pill"        data-cat="worship" aria-pressed="false">⛪ Worship</button>
-    <button class="pill"        data-cat="cinema"  aria-pressed="false">🎬 Cinema</button>
+    <button class="pill active" data-cat="all"      aria-pressed="true">🗺️ All</button>
+    <button class="pill"        data-cat="food"     aria-pressed="false">🍽️ Food</button>
+    <button class="pill"        data-cat="bank"     aria-pressed="false">🏦 Banks</button>
+    <button class="pill"        data-cat="health"   aria-pressed="false">🏥 Health</button>
+    <button class="pill"        data-cat="market"   aria-pressed="false">🛒 Markets</button>
+    <button class="pill"        data-cat="hotel"    aria-pressed="false">🏨 Hotels</button>
+    <button class="pill"        data-cat="school"   aria-pressed="false">🎓 Schools</button>
+    <button class="pill"        data-cat="tech"     aria-pressed="false">💻 Tech</button>
+    <button class="pill"        data-cat="fuel"     aria-pressed="false">⛽ Fuel</button>
+    <button class="pill"        data-cat="transit"  aria-pressed="false">🚌 Transit</button>
+    <button class="pill"        data-cat="pharmacy" aria-pressed="false">💊 Pharmacy</button>
+    <button class="pill"        data-cat="worship"  aria-pressed="false">⛪ Worship</button>
+    <button class="pill"        data-cat="cinema"   aria-pressed="false">🎬 Cinema</button>
+    <button class="pill"        data-cat="attraction" aria-pressed="false">🏛️ Landmarks</button>
   </nav>
 
-  <!-- MAP CONTROLS — right side, above bottom sheet -->
+  <!-- MAP CONTROLS -->
   <div id="map-controls-right" role="group" aria-label="Map controls">
-    <button id="zoom-in"   aria-label="Zoom in">
+    <button id="zoom-in" aria-label="Zoom in">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
+           stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <div class="map-ctrl-divider"></div>
-    <button id="zoom-out"  aria-label="Zoom out">
+    <button id="zoom-out" aria-label="Zoom out">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
+           stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <div class="map-ctrl-divider"></div>
+    <button id="btn-3d" aria-label="Toggle 3D buildings" title="3D Buildings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     </button>
     <div class="map-ctrl-divider"></div>
     <button id="locate-btn" aria-label="Go to my location">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-        <circle cx="12" cy="12" r="8"/>
-      </svg>
+           stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
     </button>
   </div>
 
-  <!-- WEATHER WIDGET — bottom-left, floats over map -->
-  <div id="weather-widget" aria-live="polite" aria-label="Current weather in Yaba">
-    <span id="weather-icon" aria-hidden="true">⛅</span>
+  <!-- WEATHER WIDGET -->
+  <div id="weather-widget" aria-live="polite" aria-label="Current weather">
+    <span id="weather-icon">⛅</span>
     <span id="weather-temp">--°</span>
-    <span id="weather-desc" style="font-size:11px;font-weight:400;color:var(--text-2)"></span>
+    <span id="weather-desc"></span>
   </div>
 
   <!-- SEARCH DROPDOWN -->
   <div id="search-dropdown" role="listbox" aria-label="Search suggestions"></div>
 
-  <!-- ═══════════════════════════════════════
-       BOTTOM SHEET — floats over map
-  ═══════════════════════════════════════ -->
-  <section id="bottom-sheet" aria-label="Place list">
-    <div id="sheet-handle-wrap" role="button" aria-label="Expand or collapse panel" tabindex="0">
+  <!-- ═══════════════════════════════════
+       BOTTOM SHEET
+  ═══════════════════════════════════ -->
+  <section id="bottom-sheet" aria-label="Main panel">
+    <div id="sheet-handle-wrap" role="button" aria-label="Expand or collapse" tabindex="0">
       <div id="sheet-handle"></div>
     </div>
+
+    <!-- Sheet header (for Explore tab) -->
     <div id="sheet-header">
-      <span id="list-count">Yaba, Lagos</span>
+      <span id="list-count">Lagos, Nigeria</span>
       <span id="sheet-area">Lagos State</span>
     </div>
-    <!-- Scrollable content -->
-    <div id="poi-list" role="list"></div>
+
+    <!-- TAB CONTENTS -->
+    <div id="tab-explore" class="tab-content active">
+      <div id="poi-list" role="list"></div>
+    </div>
+
+    <!-- ROUTES TAB CONTENT — 2GIS style -->
+    <div id="tab-routes" class="tab-content" style="display:none">
+
+      <!-- Route inputs — 2GIS pill cards -->
+      <div id="route-inputs-sheet">
+        <div class="route-pill" id="pill-from">
+          <div class="route-pill-icon origin">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          </div>
+          <input type="text" id="route-from" placeholder="My location"
+                 autocomplete="off" aria-label="Starting point" />
+          <button id="btn-use-location" aria-label="Use GPS location">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+          <div class="route-pill-drag" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="route-pill-connector" aria-hidden="true">
+          <div class="conn-dot"></div>
+          <div class="conn-dot"></div>
+          <div class="conn-dot"></div>
+        </div>
+
+        <div class="route-pill" id="pill-to">
+          <div class="route-pill-icon destination">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="8" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <input type="text" id="route-to" placeholder="Where to?"
+                 autocomplete="off" aria-label="Destination" />
+          <button id="btn-clear-to" class="hidden" aria-label="Clear destination">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <button id="route-swap-sheet" aria-label="Swap" title="Swap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4"/>
+              <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- MODE SELECTOR — icon grid -->
+      <div id="route-mode-grid" role="group" aria-label="Travel mode">
+        <button class="mode-grid-btn active" data-mode="driving" aria-pressed="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-2"/>
+            <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
+          </svg>
+          <span>Drive</span>
+        </button>
+        <button class="mode-grid-btn" data-mode="transit" aria-pressed="false">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <rect x="3" y="1" width="18" height="16" rx="3"/>
+            <path d="M3 10h18M7 17v4M17 17v4M7 21h10"/>
+            <circle cx="7.5" cy="13.5" r="1.5" fill="currentColor"/>
+            <circle cx="16.5" cy="13.5" r="1.5" fill="currentColor"/>
+          </svg>
+          <span>Bus</span>
+        </button>
+        <button class="mode-grid-btn" data-mode="walking" aria-pressed="false">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="5" r="1"/>
+            <path d="M9 20l1-4 2 2 2-8M6 8l2-3 5 1 2 3-4 1"/>
+          </svg>
+          <span>Walk</span>
+        </button>
+        <button class="mode-grid-btn" data-mode="taxi" aria-pressed="false">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path d="M6 17H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2m0 10h12M18 17h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/>
+            <path d="M6 7V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2"/>
+            <circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>
+          </svg>
+          <span>Taxi</span>
+        </button>
+        <button class="mode-grid-btn" data-mode="cycling" aria-pressed="false">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
+            <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 3"/>
+            <path d="M5.5 14L9 3h6l3 5.5h-5L10.5 14"/>
+          </svg>
+          <span>Cycle</span>
+        </button>
+        <button class="mode-grid-btn" data-mode="motorcycle" aria-pressed="false">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>
+            <path d="M5 17h14M9 7h6l3 4.5H6L9 7z"/>
+          </svg>
+          <span>Moto</span>
+        </button>
+      </div>
+
+      <!-- GET DIRECTIONS -->
+      <div style="padding:0 16px 12px">
+        <button id="btn-get-route" aria-label="Get directions">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          Get Directions
+        </button>
+      </div>
+
+      <!-- ROUTE SUMMARY (appears after route found) -->
+      <div id="route-summary" class="hidden">
+        <div id="route-summary-main">
+          <div id="route-summary-time-block">
+            <div id="route-summary-time">—</div>
+            <div id="route-summary-label">min</div>
+          </div>
+          <div id="route-summary-details">
+            <div id="route-summary-distance">—</div>
+            <div id="route-summary-arrive">—</div>
+          </div>
+          <div id="route-summary-traffic">
+            <span id="route-traffic-dot" class="traffic-dot low"></span>
+            <span id="route-traffic-label">Light traffic</span>
+          </div>
+        </div>
+        <div id="route-summary-meta">
+          <span id="route-mode-badge">Driving</span>
+          <span id="route-turns-badge">— turns</span>
+          <span id="route-road-badge">—</span>
+        </div>
+        <button id="btn-start-nav">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Start Navigation
+        </button>
+      </div>
+
+      <!-- TURN-BY-TURN -->
+      <div id="route-directions" class="hidden">
+        <button id="directions-toggle" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+          Turn-by-turn directions
+          <svg class="toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="directions-list" class="collapsed"></div>
+      </div>
+
+      <!-- NEARBY ALONG ROUTE -->
+      <div id="route-nearby" class="hidden">
+        <div id="route-nearby-header">
+          <span class="route-section-label">Along the route</span>
+          <div id="route-nearby-cats">
+            <button class="nearby-cat-btn active" data-cat="fuel">⛽ Fuel</button>
+            <button class="nearby-cat-btn" data-cat="food">🍽 Food</button>
+            <button class="nearby-cat-btn" data-cat="bank">🏦 Banks</button>
+            <button class="nearby-cat-btn" data-cat="health">🏥 Health</button>
+            <button class="nearby-cat-btn" data-cat="hotel">🏨 Hotels</button>
+          </div>
+        </div>
+        <div id="route-nearby-list"></div>
+      </div>
+
+      <!-- RECENT DESTINATIONS -->
+      <div id="route-recents">
+        <div class="route-section-label" style="padding:12px 16px 8px">Recent destinations</div>
+        <div id="route-recents-list"></div>
+      </div>
+
+    </div><!-- /tab-routes -->
+
+    <!-- NAVIGATE TAB -->
+    <div id="tab-navigate" class="tab-content" style="display:none">
+      <div id="nav-idle-state">
+        <div style="padding:32px 24px;text-align:center">
+          <div style="font-size:48px;margin-bottom:16px">🧭</div>
+          <div style="font-size:17px;font-weight:700;color:var(--text-1);margin-bottom:8px">Navigator</div>
+          <div style="font-size:13px;color:var(--text-2);line-height:1.6">
+            Search for a destination or tap<br>a place to start navigation.
+          </div>
+          <button id="btn-nav-search" style="margin-top:20px;display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--brand-600);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search destination
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVED TAB -->
+    <div id="tab-saved" class="tab-content" style="display:none">
+      <div id="saved-list-header" style="padding:0 16px 8px">
+        <span class="route-section-label" style="padding:12px 0 4px;display:block">Saved Places</span>
+      </div>
+      <div id="saved-poi-list" role="list"></div>
+    </div>
+
+    <!-- NEARBY TAB -->
+    <div id="tab-nearby" class="tab-content" style="display:none">
+      <div id="nearby-cats-bar">
+        <button class="nearby-tab-cat active" data-cat="food">🍽️ Food</button>
+        <button class="nearby-tab-cat" data-cat="bank">🏦 Banks</button>
+        <button class="nearby-tab-cat" data-cat="fuel">⛽ Fuel</button>
+        <button class="nearby-tab-cat" data-cat="health">🏥 Health</button>
+        <button class="nearby-tab-cat" data-cat="hotel">🏨 Hotels</button>
+        <button class="nearby-tab-cat" data-cat="market">🛒 Markets</button>
+        <button class="nearby-tab-cat" data-cat="pharmacy">💊 Pharmacy</button>
+        <button class="nearby-tab-cat" data-cat="transit">🚌 Transit</button>
+      </div>
+      <div id="nearby-poi-list" role="list"></div>
+    </div>
+
   </section>
 
-  <!-- ═══════════════════════════════════════
-       POI DETAIL CARD — slides up from bottom
-  ═══════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════
+       BOTTOM TAB BAR — 2GIS style
+  ═══════════════════════════════════ -->
+  <nav id="bottom-tabs" role="tablist" aria-label="Main navigation">
+    <button class="tab-btn active" data-tab="explore" role="tab" aria-selected="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span>Explore</span>
+    </button>
+    <button class="tab-btn" data-tab="routes" role="tab" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <path d="M3 12c0-2.8 2.2-5 5-5s5 2.2 5 5-2.2 5-5 5"/>
+        <path d="M11 12c0-2.8 2.2-5 5-5s5 2.2 5 5-2.2 5-5 5"/>
+      </svg>
+      <span>Routes</span>
+    </button>
+    <button class="tab-btn" data-tab="navigate" role="tab" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <path d="M3 17L12 3l9 14H3z"/>
+      </svg>
+      <span>Navigate</span>
+    </button>
+    <button class="tab-btn" data-tab="saved" role="tab" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>Saved</span>
+    </button>
+    <button class="tab-btn" data-tab="nearby" role="tab" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+        <path d="M12 8v4M12 12l2.5 2.5"/>
+      </svg>
+      <span>Nearby</span>
+    </button>
+  </nav>
+
+  <!-- ═══════════════════════════════════
+       POI DETAIL CARD
+  ═══════════════════════════════════ -->
   <article id="poi-card" class="hidden" aria-label="Place details">
-    <div id="card-handle-wrap">
-      <div id="card-handle"></div>
+    <!-- Photo / gradient hero -->
+    <div id="card-photo" aria-hidden="true">
+      <div id="card-photo-emoji"></div>
+      <div id="card-photo-gradient"></div>
+      <div id="card-photo-verified" class="hidden" title="Verified by LAGIS">✓ Verified</div>
     </div>
+    <div id="card-handle-wrap"><div id="card-handle"></div></div>
     <div id="card-inner">
       <div id="card-top">
         <div id="card-left">
@@ -150,8 +431,6 @@
         </div>
         <button id="card-close" aria-label="Close details">✕</button>
       </div>
-
-      <!-- Rating / distance / open status row -->
       <div id="card-stats">
         <div class="card-stat" id="stat-rating" style="display:none">
           <span class="card-stat-star">★</span>
@@ -160,43 +439,33 @@
         </div>
         <div class="card-stat" id="stat-distance" style="display:none">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
+               stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/></svg>
           <span id="stat-distance-val"></span>
         </div>
         <div id="stat-open" class="stat-open" style="display:none"></div>
+        <div id="stat-area" class="stat-area" style="display:none"></div>
       </div>
-
-      <!-- Meta: phone, hours, website -->
       <div id="card-meta">
         <div class="meta-row hidden" id="meta-phone">
-          <span class="meta-row-icon">📞</span>
-          <span id="meta-phone-text"></span>
+          <span class="meta-row-icon">📞</span><span id="meta-phone-text"></span>
         </div>
         <div class="meta-row hidden" id="meta-hours">
-          <span class="meta-row-icon">🕐</span>
-          <span id="meta-hours-text"></span>
+          <span class="meta-row-icon">🕐</span><span id="meta-hours-text"></span>
         </div>
         <div class="meta-row hidden" id="meta-website">
-          <span class="meta-row-icon">🌐</span>
-          <span id="meta-website-text"></span>
+          <span class="meta-row-icon">🌐</span><span id="meta-website-text"></span>
         </div>
       </div>
-
-      <!-- Action buttons -->
       <div id="card-btns">
-        <button class="card-action primary" id="btn-directions" aria-label="Get directions">
+        <button class="card-action primary" id="btn-directions">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-          </svg>
+               stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
           Directions
         </button>
-        <button class="card-action" id="btn-share" aria-label="Share this place">
+        <button class="card-action" id="btn-share">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
+               stroke="currentColor" stroke-width="2">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
             <circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
@@ -204,136 +473,179 @@
           </svg>
           Share
         </button>
-        <button class="card-action" id="btn-save" aria-label="Save this place">
+        <button class="card-action" id="btn-save">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" aria-hidden="true"
-               id="save-icon">
+               stroke="currentColor" stroke-width="2" id="save-icon">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67
                      l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78
-                     l1.06 1.06L12 21.23l7.78-7.78
-                     1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                     l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
           Save
+        </button>
+        <button class="card-action" id="btn-view-details">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Details
         </button>
       </div>
     </div>
   </article>
 
-  <!-- ═══════════════════════════════════════
-       ROUTE PANEL — slides down from top
-  ═══════════════════════════════════════ -->
-  <div id="route-overlay" class="hidden" aria-hidden="true"></div>
-  <section id="route-panel" class="hidden" aria-label="Route planner">
-    <div id="route-header">
-      <button id="route-close" aria-label="Close route planner">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
+  <!-- ═══════════════════════════════════
+       FULL BUSINESS DETAIL PAGE
+  ═══════════════════════════════════ -->
+  <div id="poi-detail-page" class="hidden" role="dialog" aria-label="Business details">
+    <div id="detail-hero">
+      <div id="detail-hero-emoji"></div>
+      <div id="detail-hero-gradient"></div>
+      <button id="detail-back" aria-label="Close details">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <span id="route-title">Plan Route</span>
-      <button id="route-swap" aria-label="Swap origin and destination">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
-          <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
-        </svg>
-      </button>
+      <div id="detail-verified-badge" class="hidden">✓ Verified</div>
     </div>
+    <div id="detail-scroll">
+      <div id="detail-header">
+        <div id="detail-badge"></div>
+        <h1 id="detail-name"></h1>
+        <p id="detail-sub"></p>
+        <div id="detail-rating-row">
+          <span id="detail-stars"></span>
+          <strong id="detail-rating-num"></strong>
+          <span id="detail-reviews-count"></span>
+        </div>
+      </div>
 
-    <div id="route-inputs">
-      <div class="route-input-row">
-        <div class="route-dot origin"></div>
-        <input type="text" id="route-from"
-               placeholder="From: your location"
-               autocomplete="off" aria-label="Starting point" />
-        <button id="btn-use-location" aria-label="Use my current location">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-            <circle cx="12" cy="12" r="8"/>
-          </svg>
+      <!-- Quick actions -->
+      <div id="detail-actions">
+        <button class="detail-action-btn" id="detail-btn-directions">
+          <div class="detail-action-icon" style="background:var(--brand-600)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          </div>
+          <span>Directions</span>
+        </button>
+        <button class="detail-action-btn" id="detail-btn-call" style="display:none">
+          <div class="detail-action-icon" style="background:#3b82f6">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6.53 6.53l1.62-1.62a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </div>
+          <span>Call</span>
+        </button>
+        <button class="detail-action-btn" id="detail-btn-share">
+          <div class="detail-action-icon" style="background:#8b5cf6">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </div>
+          <span>Share</span>
+        </button>
+        <button class="detail-action-btn" id="detail-btn-save">
+          <div class="detail-action-icon" style="background:#f59e0b">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <span>Save</span>
         </button>
       </div>
-      <!-- Dotted connector -->
-      <div class="route-line-connector" aria-hidden="true">
-        <div class="route-connector-dot"></div>
-        <div class="route-connector-dot"></div>
-        <div class="route-connector-dot"></div>
+
+      <!-- Info section -->
+      <div id="detail-info-section">
+        <div class="detail-info-row" id="dinfo-address">
+          <div class="detail-info-icon">📍</div>
+          <div class="detail-info-text" id="dinfo-address-text"></div>
+        </div>
+        <div class="detail-info-row hidden" id="dinfo-phone">
+          <div class="detail-info-icon">📞</div>
+          <a class="detail-info-text detail-link" id="dinfo-phone-text" href=""></a>
+        </div>
+        <div class="detail-info-row hidden" id="dinfo-hours">
+          <div class="detail-info-icon">🕐</div>
+          <div class="detail-info-text" id="dinfo-hours-text"></div>
+          <div class="detail-open-pill" id="dinfo-open-pill"></div>
+        </div>
+        <div class="detail-info-row hidden" id="dinfo-website">
+          <div class="detail-info-icon">🌐</div>
+          <a class="detail-info-text detail-link" id="dinfo-website-text" href="" target="_blank"></a>
+        </div>
       </div>
-      <div class="route-input-row">
-        <div class="route-dot destination"></div>
-        <input type="text" id="route-to"
-               placeholder="To: destination"
-               autocomplete="off" aria-label="Destination" />
-        <button id="btn-clear-to" aria-label="Clear destination">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+
+      <!-- Popular times (future) -->
+      <div id="detail-popular-times" class="detail-section hidden">
+        <div class="detail-section-label">Popular Times</div>
+        <div id="detail-popular-chart"></div>
+        <p class="detail-popular-hint">Typically less busy than usual</p>
+      </div>
+
+      <!-- Nearby / Similar places -->
+      <div id="detail-nearby-section" class="detail-section">
+        <div class="detail-section-label">Similar Nearby</div>
+        <div id="detail-nearby-list"></div>
       </div>
     </div>
+  </div>
 
-    <!-- Travel mode selector -->
-    <div id="route-modes" role="group" aria-label="Travel mode">
-      <button class="mode-btn active" data-mode="driving" aria-pressed="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-2"/>
-          <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
-        </svg>
-        Drive
-      </button>
-      <button class="mode-btn" data-mode="walking" aria-pressed="false">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="12" cy="5" r="1"/>
-          <path d="M9 20l1-4 2 2 2-8M6 8l2-3 5 1 2 3-4 1"/>
-        </svg>
-        Walk
-      </button>
-      <button class="mode-btn" data-mode="cycling" aria-pressed="false">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="5.5" cy="17.5" r="3.5"/>
-          <circle cx="18.5" cy="17.5" r="3.5"/>
-          <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 3"/>
-          <path d="M5.5 14L9 3h6l3 5.5h-5L10.5 14"/>
-        </svg>
-        Cycle
-      </button>
+  <!-- ═══════════════════════════════════
+       MAP TAP — LOCATION CARD
+  ═══════════════════════════════════ -->
+  <div id="location-card" class="hidden" role="dialog" aria-label="Tapped location">
+    <div id="lcard-pin">📍</div>
+    <div id="lcard-body">
+      <div id="lcard-address">Getting address…</div>
+      <div id="lcard-coords"></div>
     </div>
+    <div id="lcard-actions">
+      <button class="lcard-btn primary" id="lcard-btn-nav">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Navigate
+      </button>
+      <button class="lcard-btn" id="lcard-btn-copy">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy
+      </button>
+      <button class="lcard-btn" id="lcard-btn-close">✕</button>
+    </div>
+  </div>
 
-    <button id="btn-get-route" aria-label="Get directions">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+  <!-- NAVIGATION BAR (during active nav) -->
+  <div id="nav-bar" class="hidden">
+    <div id="nav-bar-info">
+      <div id="nav-bar-time">--</div>
+      <div id="nav-bar-dist">-- km</div>
+    </div>
+    <button id="btn-end-nav">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
       </svg>
-      Get Directions
+      End
     </button>
+  </div>
 
-    <!-- Route result: distance + time -->
-    <div id="route-info" class="hidden" aria-live="polite">
-      <div id="route-distance">—</div>
-      <div id="route-time">—</div>
+  <!-- END NAV CONFIRM -->
+  <div id="end-nav-confirm" class="hidden" role="dialog">
+    <div id="end-nav-dialog">
+      <div id="end-nav-title">End navigation?</div>
+      <div id="end-nav-sub">Your route will be cancelled.</div>
+      <div id="end-nav-btns">
+        <button id="btn-end-confirm">End Navigation</button>
+        <button id="btn-end-cancel">Keep Going</button>
+      </div>
     </div>
+  </div>
 
-    <!-- Nearby suggestions -->
-    <div id="route-suggestions">
-      <div id="route-suggestions-title">Nearby places</div>
-      <div id="route-suggestions-list" role="list"></div>
-    </div>
-  </section>
+  <!-- 3D ACTIVE BADGE -->
+  <div id="badge-3d-active">3D</div>
 
-  <!-- ═══════════════════════════════════════
-       SCRIPTS
-  ═══════════════════════════════════════ -->
+  <!-- TOAST NOTIFICATION -->
+  <div id="lagis-toast" role="status" aria-live="polite"></div>
+
+  <!-- SCRIPTS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <!-- OSM Buildings for 3D building footprints -->
+  <script src="https://osmbuildings.org/js/OSMBuildings-Leaflet.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 
